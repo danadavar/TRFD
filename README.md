@@ -29,7 +29,7 @@ You can run TRFD by typing:
 
 **Input**
 
-- **x0** [n x 1]: initial point (a column vector)
+- **x0** [n x 1]: initial point
 - **Ffun**: function provided by the user that computes $F$
 - **nfmax** [1 x 1]: maximum number of function evaluations allowed
 - **M** [... x n]: matrix for linear constraints on $x$ ([ ] if no matrix)
