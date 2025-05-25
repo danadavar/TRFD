@@ -18,7 +18,7 @@ function [x_min, f_min, nf, stop, H] = TRFD (x0, Ffun, nfmax, M, v, lb, ub, inst
 %
 % INPUT:
 %  
-%   x0 [n x 1]: initial point (a column vector)
+%   x0 [n x 1]: initial point
 %   Ffun: function provided by the user that computes F
 %   nfmax [1 x 1]: maximum number of function evaluations allowed
 %   M [... x n]: matrix for linear constraints on x ([] if no matrix)
@@ -70,6 +70,16 @@ function [x_min, f_min, nf, stop, H] = TRFD (x0, Ffun, nfmax, M, v, lb, ub, inst
 
 %%%%%%%%%%%%%%%  N, X0, M, OUTER FUNCTION AND NORM-CONSTANTS %%%%%%%%%%%%%%
 
+if size(x0, 2) > 1
+    x0 = x0';
+
+    if size (x0, 2) > 1
+        fprintf("Error: x0 must be a vector");
+        [x_min, f_min, nf, stop, H] = deal([]);
+        return
+    end
+end
+
 n = height(x0);                     % number of variables
 
 if isempty(lb) && isempty(ub)
@@ -89,7 +99,28 @@ else
 end
 
 fvec = Ffun(x);                     % F(x0)
+
+if size(fvec, 2) > 1
+    fvec = fvec';
+
+    if size (fvec, 2) > 1
+        fprintf("Error: F(x) must be a vector");
+        [x_min, f_min, nf, stop, H] = deal([]);
+        return
+    end
+
+    Ffun = @(x) Ffun(x)';
+end
+
 m = height(fvec);                   % number of components of F
+
+if instance == 6 || instance == 7 || instance == 8
+    if m > 1
+        fprintf("Error: For Smooth problems, F(x) must be a scalar (m must be 1)");
+        [x_min, f_min, nf, stop, H] = deal([]);
+        return
+    end
+end
 
 switch instance
     
