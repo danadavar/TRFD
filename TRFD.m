@@ -55,76 +55,32 @@ function [x_min, f_min, nf, stop, H] = TRFD (x0, Ffun, nfmax, M, v, lb, ub, inst
 %   H [nfmax x 1] = a vector such that H(i) is the smallest value of
 %                   h (F(x)) obtained by TRFD after i function evaluations
 %
-% Functions called: Ffun, Jac_approx, inner_solver, quad_obj, quad_con                   
+% Functions called: check_imputs, Ffun, Jac_approx, inner_solver, quad_obj, quad_con                   
 %
 % Authors information:
 %
 % Dânâ Davar, Geovani Nunes Grapiglia
-% UCLouvain, Belgium
-% ICTEAM Institute 
+% ICTEAM Institute, UCLouvain, Belgium
 % dana.davar@uclouvain.be, geovani.grapiglia@uclouvain.be
 %
-% May 2025
+% June 2025
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%%%%%%%%%%%%%%%  N, X0, M, OUTER FUNCTION AND NORM-CONSTANTS %%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%% INITIAL CHECK %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-if size(x0, 2) > 1
-    x0 = x0';
+[x, fvec, Ffun, n, m, lb, ub, check] = check_inputs (x0, Ffun, nfmax, M, v, lb, ub, instance);
 
-    if size (x0, 2) > 1
-        fprintf("Error: x0 must be a vector");
-        [x_min, f_min, nf, stop, H] = deal([]);
-        return
-    end
+if check == 0
+    [x_min, f_min, nf, stop, H] = deal([]);
+    return
 end
 
-n = height(x0);                     % number of variables
-
-if isempty(lb) && isempty(ub)
-    lb = -Inf;
-    ub = Inf;
-    x = x0;                                        
-else
-    if isempty(lb)
-        lb = Inf;
-    end
-
-    if isempty(ub)
-        ub = Inf;
-    end
-
-    x = min(max(x0, lb*ones(n,1)), ub*ones(n,1));  
-end
-
-fvec = Ffun(x);                     % F(x0)
-
-if size(fvec, 2) > 1
-    fvec = fvec';
-
-    if size (fvec, 2) > 1
-        fprintf("Error: F(x) must be a vector");
-        [x_min, f_min, nf, stop, H] = deal([]);
-        return
-    end
-
-    Ffun = @(x) Ffun(x)';
-end
-
-m = height(fvec);                   % number of components of F
-
-if instance == 6 || instance == 7 || instance == 8
-    if m > 1
-        fprintf("Error: For Smooth problems, F(x) must be a scalar (m must be 1)");
-        [x_min, f_min, nf, stop, H] = deal([]);
-        return
-    end
-end
+%%%%%%%%%%%%%%%%%%%%%  OUTER FUNCTION AND CONSTANTS  %%%%%%%%%%%%%%%%%%%%%%
 
 switch instance
     
-    case 1                          % L1 with p = 1
+    case 1                          % L1 problem with p = 1
 
         hfun = @(z) norm(z,1);
         L_h = 1;                    % Lipschitz constant of h
@@ -132,7 +88,7 @@ switch instance
         cn = 1;                     % ||x||_2 <= cn ||x||_1
         p = 1;
 
-    case 2                          % L1 with p = 2
+    case 2                          % L1 problem with p = 2
 
         hfun = @(z) norm(z,1);
         L_h = sqrt(m);                     
@@ -140,7 +96,7 @@ switch instance
         cn = 1;
         p = 2;
 
-    case 3                          % L1 with p = Inf
+    case 3                          % L1 problem with p = Inf
 
         hfun = @(z) norm(z,1);
         L_h = m;                     
@@ -148,22 +104,22 @@ switch instance
         cn = sqrt(n);  
         p = Inf;
 
-    case 4                          % Minimax with p = 1 or p = Inf
+    case 4                          % Minimax problem with p = 1 or p = Inf
 
         hfun = @(z) max(z);
         L_h = 1;
         
-        if sqrt(m) >= n
-            cm = 1;                                 
-            cn = sqrt(n);
-            p = Inf;
-        else
+        if sqrt(m) < n
             cm = sqrt(m);                                 
             cn = 1;
             p = 1;
+        else
+            cm = 1;                                 
+            cn = sqrt(n);
+            p = Inf;
         end
 
-    case 5                          % Minimax with p = 2
+    case 5                          % Minimax problem with p = 2
 
         hfun = @(z) max(z);
         L_h = 1;
@@ -171,7 +127,7 @@ switch instance
         cn = 1;
         p = 2;
 
-    case 6                          % Smooth with p = 1
+    case 6                          % Smooth problem with p = 1
 
         hfun = @(z) z;
         L_h = 1;                     
@@ -179,7 +135,7 @@ switch instance
         cn = 1;
         p = 1;
 
-    case 7                          % Smooth with p = 2
+    case 7                          % Smooth problem with p = 2
 
         hfun = @(z) z;
         L_h = 1;                     
@@ -187,7 +143,7 @@ switch instance
         cn = 1;
         p = 2;
 
-    case 8                          % Smooth with p = Inf
+    case 8                          % Smooth problem with p = Inf
 
         hfun = @(z) z;
         L_h = 1;                     
@@ -205,18 +161,18 @@ alpha = 0.15;                               % minimum ratio to label the iterati
 Delta = max([1 tau*sqrt(n)]);               % initial trust-region radius
 Delta_max = 1000;                           % upper-bound on the trust-region radius
 Delta_tol = 1e-13;                          % tolerance on the trust-region radius
-eta_tol = 1e-13;                            % tolerance on the approximate criticality measure
+eta_tol = 1e-13;                            % tolerance on the approximate stationarity measure
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 0  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 0  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-f = hfun(fvec);                             % h(F(x0))
+f = hfun(fvec);                             % h (F(x0))
 nf = 1;                                     % number of function evaluations
 
 H0 = zeros(nfmax, 1);                       % history of function evaluations
 H0(1) = f;
 
-x_min = x;
-f_min = f;
+x_min = x;                                  % vector yielding the lowest function value found so far
+f_min = f;                                  % lowest function value found so far
 
 k = 0;                                      % iteration index
 stop = 0;                               
@@ -227,7 +183,7 @@ while nf < nfmax && Delta > Delta_tol
 
     switch Step
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 1  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 1  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         case 1
     
@@ -251,7 +207,7 @@ while nf < nfmax && Delta > Delta_tol
              
             Step = 2;
     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 2  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 2  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
         case 2
     
@@ -267,7 +223,7 @@ while nf < nfmax && Delta > Delta_tol
                 Step = 1;
             end
       
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 3  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 3  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
         case 3
     
@@ -280,7 +236,7 @@ while nf < nfmax && Delta > Delta_tol
       
             Step = 4;
     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 4  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 4  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
         case 4
     
@@ -289,6 +245,8 @@ while nf < nfmax && Delta > Delta_tol
             f1 = hfun(fvec1);
             H0(nf + 1) = f1;
             nf = nf + 1;
+
+            fprintf("nf = %8d; f = %8e; eta = %8e; Delta = %8e \n", nf, f1, eta, Delta);
 
             if f1 < f_min
                 x_min = x1;
@@ -311,7 +269,7 @@ while nf < nfmax && Delta > Delta_tol
                 Step = 5;
             end
     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 5  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  STEP 5  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         case 5
     
@@ -326,11 +284,11 @@ while nf < nfmax && Delta > Delta_tol
                 Step = 1;
             end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%  SWITCH STEP  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%  SWITCH STEP  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%  TRFD ENDS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  TRFD ENDS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 end
 
