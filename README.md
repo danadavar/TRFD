@@ -88,8 +88,7 @@ Ffun = @(x) 100*(x(2) - x(1)^2)^2 + (1 - x(1))^2
 ## Contact
 
 Dânâ Davar,  Geovani Nunes Grapiglia <br>
-UCLouvain, Belgium <br>
-ICTEAM Institute <br>
+ICTEAM Institute, UCLouvain, Belgium <br>
 dana.davar@uclouvain.be, geovani.grapiglia@uclouvain.be <br>
 
-May 2025
+June 2025
