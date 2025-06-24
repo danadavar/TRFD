@@ -1,4 +1,4 @@
-function [A, H] = Jac_approx (x, fvec, tau, m, n, hfun, Ffun, lb, ub, x_min, f_min)
+function [A, H, x_min, f_min] = Jac_approx (x, fvec, tau, m, n, hfun, Ffun, lb, ub, x_min, f_min)
 
 H = zeros(n,1);
 I = eye(n);
