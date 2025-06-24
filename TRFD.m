@@ -187,7 +187,7 @@ while nf < nfmax && Delta > Delta_tol
         
         case 1
     
-            [A, H1] = Jac_approx (x, fvec, tau, m, n, hfun, Ffun, lb, ub, x_min, f_min);
+            [A, H1, x_min, f_min] = Jac_approx (x, fvec, tau, m, n, hfun, Ffun, lb, ub, x_min, f_min);
             H0(nf+1: nf+n) = H1;
             nf = nf + n;
           
